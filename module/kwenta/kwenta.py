@@ -12,7 +12,7 @@ from .constants import (
     DEFAULT_GQL_ENDPOINT_PERPS,
     DEFAULT_GQL_ENDPOINT_RATES,
     DEFAULT_PRICE_SERVICE_ENDPOINTS,
-    ACCOUNT_COMMANDS
+    ACCOUNT_COMMANDS,
 )
 from .contracts import abis, addresses
 from .alerts import Alerts
@@ -39,8 +39,8 @@ class Kwenta:
         price_service_endpoint: str = None,
         telegram_token: str = None,
         telegram_channel_name: str = None,
-        fast_marketload:    bool = False,
-        internal_nonce:  bool = False,
+        fast_marketload: bool = False,
+        internal_nonce: bool = False,
     ):
         # set default values
         if network_id is None:
@@ -113,20 +113,18 @@ class Kwenta:
             return w3
 
     def _load_market(self, market):
-        marketsettings_contract = self.web3.eth.contract(
-            self.web3.to_checksum_address(
-                addresses["PerpsV2MarketSettings"][self.network_id]
-            ),
-            abi=abis["PerpsV2MarketSettings"],
-        )
-        # if not self.fast_marketload:
-        #     time.sleep(.1)
-        maxFundingVelocity = marketsettings_contract.functions.maxFundingVelocity(
-            market[2]).call()
-        skewScale = marketsettings_contract.functions.skewScale(
-            market[2]).call()
-        maxKeeperFee = marketsettings_contract.functions.maxKeeperFee().call()
-        minKeeperFee = marketsettings_contract.functions.minKeeperFee().call()
+        # marketsettings_contract = self.web3.eth.contract(
+        #     self.web3.to_checksum_address(
+        #         addresses["PerpsV2MarketSettings"][self.network_id]
+        #     ),
+        #     abi=abis["PerpsV2MarketSettings"],
+        # )
+        # maxFundingVelocity = marketsettings_contract.functions.maxFundingVelocity(
+        #     market[2]).call()
+        # skewScale = marketsettings_contract.functions.skewScale(
+        #     market[2]).call()
+        # maxKeeperFee = marketsettings_contract.functions.maxKeeperFee().call()
+        # minKeeperFee = marketsettings_contract.functions.minKeeperFee().call()
         normalized_market = {
             "market_address": market[0],
             "asset": market[1].decode("utf-8").strip("\x00"),
@@ -144,10 +142,10 @@ class Kwenta:
             "makerFeeDelayedOrder": market[10][3],
             "takerFeeOffchainDelayedOrder": market[10][4],
             "makerFeeOffchainDelayedOrder": market[10][5],
-            "maxFundingVelocity": maxFundingVelocity,
-            "skewScale": skewScale,
-            "maxKeeperFee": maxKeeperFee,
-            "minKeeperFee": minKeeperFee,
+            # "maxFundingVelocity": maxFundingVelocity,
+            # "skewScale": skewScale,
+            # "maxKeeperFee": maxKeeperFee,
+            # "minKeeperFee": minKeeperFee,
         }
         token_symbol = market[2].decode("utf-8").strip("\x00")[1:-4]
         market_contract = self.web3.eth.contract(
@@ -199,7 +197,7 @@ class Kwenta:
         if len(sm_accounts) > 0:
             sm_account = sm_accounts[0]
         else:
-            sm_account = ''
+            sm_account = ""
 
         return markets, market_contracts, susd_token, sm_account
 
@@ -321,9 +319,9 @@ class Kwenta:
             "position_size": delayed_order[1],
             "desired_fill_price": delayed_order[2],
             "intention_time": int(delayed_order[7]),
-            "executable_time": int(delayed_order[7]) + 15
-            if int(delayed_order[7]) > 0
-            else 0,
+            "executable_time": (
+                int(delayed_order[7]) + 15 if int(delayed_order[7]) > 0 else 0
+            ),
         }
 
     def get_sm_accounts(self, wallet_address: str = None) -> dict:
@@ -406,7 +404,10 @@ class Kwenta:
         return {"usd": usd_price, "wei": wei_price}
 
     def get_current_position(
-        self, token_symbol: str = "ETH", wallet_address: str = None, all_markets: bool = False
+        self,
+        token_symbol: str = "ETH",
+        wallet_address: str = None,
+        all_markets: bool = False,
     ) -> dict:
         """
         Gets Current Position Data
@@ -425,8 +426,9 @@ class Kwenta:
 
         def fetch_positions(token_symbol):
             market_contract = self.get_market_contract(token_symbol)
-            (id, last_funding_index, margin, last_price,
-             size) = market_contract.functions.positions(wallet_address).call()
+            (id, last_funding_index, margin, last_price, size) = (
+                market_contract.functions.positions(wallet_address).call()
+            )
             current_asset_price = self.get_current_asset_price(token_symbol)
 
             is_short = -1 if size < 0 else 1
@@ -447,8 +449,10 @@ class Kwenta:
         if all_markets:
             positions_data_list = []
             with ThreadPoolExecutor() as executor:
-                futures = {executor.submit(
-                    fetch_positions, token): token for token in self.token_list}
+                futures = {
+                    executor.submit(fetch_positions, token): token
+                    for token in self.token_list
+                }
                 for future in as_completed(futures):
                     data = future.result()
                     positions_data_list.append(data)
@@ -686,12 +690,10 @@ class Kwenta:
         market_contract = self.get_market_contract(token_symbol.upper())
         funding_rate = market_contract.functions.currentFundingRate().call()
         if funding_rate < 0:
-            rate_percent = self.web3.from_wei(abs(funding_rate), "ether")*-1
+            rate_percent = self.web3.from_wei(abs(funding_rate), "ether") * -1
         else:
             rate_percent = self.web3.from_wei(abs(funding_rate), "ether")
-        return {
-            "funding_rate_percent": rate_percent
-        }
+        return {"funding_rate_percent": rate_percent}
 
     def get_funding_velocity(self, token_symbol: str) -> dict:
         """
@@ -708,13 +710,12 @@ class Kwenta:
         market_contract = self.get_market_contract(token_symbol.upper())
         funding_rate = market_contract.functions.currentFundingVelocity().call()
         if funding_rate < 0:
-            rate_percent = self.web3.from_wei(abs(funding_rate), "ether")*-1
+            rate_percent = self.web3.from_wei(abs(funding_rate), "ether") * -1
         else:
             rate_percent = self.web3.from_wei(abs(funding_rate), "ether")
-        return {
-            "funding_velocity_percent": rate_percent
-        }
-#  getCurrentFundingVelocity ; getCurrentMarketSkew
+        return {"funding_velocity_percent": rate_percent}
+
+    #  getCurrentFundingVelocity ; getCurrentMarketSkew
 
     def get_susd_balance(self, address: str) -> dict:
         """
@@ -775,7 +776,9 @@ class Kwenta:
             "max_asset_leverage": max_leverage,
         }
 
-    def approve_susd(self, susd_amount: int, approve_max: bool = False, nonce: int = -1):
+    def approve_susd(
+        self, susd_amount: int, approve_max: bool = False, nonce: int = -1
+    ):
         susd_balance = self.get_susd_balance(self.wallet_address)["balance"]
         if approve_max:
             data_tx = self.susd_token.encodeABI(
@@ -786,11 +789,16 @@ class Kwenta:
                 fn_name="approve", args=[self.sm_account, susd_amount]
             )
         if nonce != -1:
-            tx_params = self._get_tx_params(to=self.web3.to_checksum_address(
-                addresses["sUSD"][self.network_id]), nonce=nonce)
+            tx_params = self._get_tx_params(
+                to=self.web3.to_checksum_address(
+                    addresses["sUSD"][self.network_id]),
+                nonce=nonce,
+            )
         else:
             tx_params = self._get_tx_params(
-                to=self.web3.to_checksum_address(addresses["sUSD"][self.network_id]))
+                to=self.web3.to_checksum_address(
+                    addresses["sUSD"][self.network_id])
+            )
         tx_params["data"] = data_tx
         tx_params["gas"] = 1500000
         print(f"Approving sUSD: {susd_amount}")
@@ -864,7 +872,8 @@ class Kwenta:
                         )
                     if nonce != -1:
                         tx_params = self._get_tx_params(
-                            to=self.sm_account, value=0, nonce=nonce)
+                            to=self.sm_account, value=0, nonce=nonce
+                        )
                     else:
                         tx_params = self._get_tx_params(
                             to=self.sm_account, value=0)
@@ -922,11 +931,12 @@ class Kwenta:
             susd_balance = self.get_susd_balance(self.sm_account)
         print(f"sUSD Balance: {susd_balance['balance_usd']}")
         # check that withdrawal is less than account balance
-        if (token_amount > susd_balance["balance"]):
+        if token_amount > susd_balance["balance"]:
             raise Exception(
-                f"Token amount: {token_amount} is greater than Account Balance: {susd_balance['balance_usd']} | Verify your balance.")
+                f"Token amount: {token_amount} is greater than Account Balance: {susd_balance['balance_usd']} | Verify your balance."
+            )
         # Move amount from EOA Wallet to SM Account
-        if (is_withdrawal > 0):
+        if is_withdrawal > 0:
             if (token_amount > 0) and (skip_approval is False):
                 self.approve_susd(token_amount)
                 print("Waiting for Approval...")
@@ -952,7 +962,8 @@ class Kwenta:
                 )
                 if nonce != -1:
                     tx_params = self._get_tx_params(
-                        to=self.sm_account, value=0, nonce=nonce)
+                        to=self.sm_account, value=0, nonce=nonce
+                    )
                 else:
                     tx_params = self._get_tx_params(
                         to=self.sm_account, value=0)
@@ -976,15 +987,19 @@ class Kwenta:
             # Execute Commands: https://github.com/Kwenta/smart-margin/wiki/Commands
             # args[0] == Command ID, args[1] == command inputs, in bytes
             if withdrawal_all:
-                token_amount = (int(self.get_accessible_margin(
-                    self.sm_account)["margin_remaining"]) * -1)
+                token_amount = (
+                    int(self.get_accessible_margin(
+                        self.sm_account)["margin_remaining"])
+                    * -1
+                )
             commandBytes = encode(["int256"], [token_amount])
             data_tx = sm_account_contract.encodeABI(
                 fn_name="execute", args=[[0], [commandBytes]]
             )
             if nonce != -1:
                 tx_params = self._get_tx_params(
-                    to=self.sm_account, value=0, nonce=nonce)
+                    to=self.sm_account, value=0, nonce=nonce
+                )
             else:
                 tx_params = self._get_tx_params(to=self.sm_account, value=0)
             tx_params["data"] = data_tx
@@ -1260,7 +1275,8 @@ class Kwenta:
             )
             if nonce != -1:
                 tx_params = self._get_tx_params(
-                    to=self.sm_account, value=0, nonce=nonce)
+                    to=self.sm_account, value=0, nonce=nonce
+                )
             else:
                 tx_params = self._get_tx_params(to=self.sm_account, value=0)
             tx_params["data"] = data_tx
@@ -1283,7 +1299,11 @@ class Kwenta:
                 }
 
     def cancel_order(
-        self, token_symbol: str, account: str = None, execute_now: bool = False, nonce: int = -1,
+        self,
+        token_symbol: str,
+        account: str = None,
+        execute_now: bool = False,
+        nonce: int = -1,
     ) -> str:
         """
         Cancels an open order
@@ -1382,7 +1402,8 @@ class Kwenta:
         )
         if nonce != -1:
             tx_params = self._get_tx_params(
-                to=market_contract.address, value=1, nonce=nonce)
+                to=market_contract.address, value=1, nonce=nonce
+            )
         else:
             tx_params = self._get_tx_params(
                 to=market_contract.address, value=1)
@@ -1750,7 +1771,11 @@ class Kwenta:
         return None
 
     def execute_chain(
-        self, command_list: list, wallet_address: str = None, execute_now: bool = False, nonce: int = -1,
+        self,
+        command_list: list,
+        wallet_address: str = None,
+        execute_now: bool = False,
+        nonce: int = -1,
     ) -> str:
         """
         Excecute Kwenta Command Chain. Advanced Usage.
@@ -1790,7 +1815,8 @@ class Kwenta:
 
             if nonce != -1:
                 tx_params = self._get_tx_params(
-                    to=self.sm_account, value=0, nonce=nonce)
+                    to=self.sm_account, value=0, nonce=nonce
+                )
             else:
                 tx_params = self._get_tx_params(to=self.sm_account, value=0)
             tx_params["data"] = data_tx
